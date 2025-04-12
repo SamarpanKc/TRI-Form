@@ -42,9 +42,17 @@ export async function POST(req: Request) {
       dataConsent,
     } = body;
 
+    // Validate input
+    if (!firstName || !lastName || !email || !phone) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
     const db = await createConnection();
     const [result] = await db.execute(
-      "INSERT INTO test_workshop (First_Name, Last_Name, Email, Phone_No, College_Institution, Subject_Field, Year_Sem, Submit) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO test_workshop (First_Name, Last_Name, Email, Phone_No, College_Institution, Subject_Field, Year_Sem, Submit, status, registrationDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())",
       [firstName, lastName, email, phone, institution, major, yearOfStudy, dataConsent]
     );
 
@@ -56,9 +64,9 @@ export async function POST(req: Request) {
       uid: (result as { insertId: number }).insertId,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error during registration:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { success: false, message: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
