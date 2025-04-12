@@ -63,14 +63,30 @@ export default function WorkshopRegistrationForm() {
   })
 
   function onSubmit(data: FormValues) {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log(data)
-      setIsSubmitting(false)
-      setIsSubmitted(true)
-    }, 2000)
+    fetch("/api/posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (response.ok) {
+          console.log("Success:", result);
+          setIsSubmitted(true);
+        } else {
+          console.error("Error:", result.error);
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   }
 
   const next = async () => {
