@@ -37,8 +37,13 @@ interface RegistrationsTableProps {
   onDelete: (id: string) => void
 }
 
-export default function RegistrationsTable({ onApprove, onReject, onDelete }: Omit<RegistrationsTableProps, "registrations">) {
-  const [registrations, setRegistrations] = useState<Registration[]>([])
+export default function RegistrationsTable({
+  registrations, // Destructure the registrations prop
+  onApprove,
+  onReject,
+  onDelete,
+}: RegistrationsTableProps) {
+  const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>(registrations);
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -50,7 +55,7 @@ export default function RegistrationsTable({ onApprove, onReject, onDelete }: Om
     const fetchRegistrations = async () => {
       try {
         const response = await axios.get("/api/registrations");
-        setRegistrations(response.data);
+        setFilteredRegistrations(response.data);
       } catch (error) {
         console.error("Error fetching registrations:", error);
       } finally {
@@ -66,7 +71,7 @@ export default function RegistrationsTable({ onApprove, onReject, onDelete }: Om
   }
 
   // Filter registrations based on search term and status filter
-  const filteredRegistrations = registrations.filter((registration) => {
+  const filteredRegistrationsList = filteredRegistrations.filter((registration) => {
     const matchesSearch =
       registration.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -93,7 +98,7 @@ export default function RegistrationsTable({ onApprove, onReject, onDelete }: Om
       "Registration Date",
     ].join(",")
 
-    const rows = filteredRegistrations.map((reg) =>
+    const rows = filteredRegistrationsList.map((reg) =>
       [
         reg.id,
         `"${reg.firstName}"`,
@@ -211,14 +216,14 @@ export default function RegistrationsTable({ onApprove, onReject, onDelete }: Om
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRegistrations.length === 0 ? (
+                {filteredRegistrationsList.length === 0 ? (
                   <TableRow>
                     <TableCell  aria-colspan={6} className="text-center py-8 text-gray-500">
                       No registrations found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRegistrations.map((registration) => (
+                  filteredRegistrationsList.map((registration) => (
                     <TableRow key={registration.id}>
                       <TableCell className="font-medium">
                         {registration.firstName} {registration.lastName}
@@ -270,7 +275,7 @@ export default function RegistrationsTable({ onApprove, onReject, onDelete }: Om
           </div>
 
           <div className="mt-4 text-sm text-gray-500">
-            Showing {filteredRegistrations.length} of {registrations.length} registrations
+            Showing {filteredRegistrationsList.length} of {filteredRegistrations.length} registrations
           </div>
         </CardContent>
       </Card>
