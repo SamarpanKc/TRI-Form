@@ -1,52 +1,47 @@
 "use client";
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { CheckIcon, ChevronRightIcon, ChevronLeftIcon, Loader2Icon } from "lucide-react"
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { CheckIcon, ChevronRightIcon, ChevronLeftIcon, Loader2Icon } from "lucide-react";
 import Link from "next/link";
-// import PrivacyPolicy from "@/components/privacy-policy"
+import supabase from "@/app/lib/supabase"; // Import the Supabase client
 
-import { Button } from "@/app/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/app/components/ui/form"
-import { Input } from "@/app/components/ui/input"
-// import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
-import { Checkbox } from "@/app/components/ui/checkbox"
-import { Card, CardContent } from "@/app/components/ui/card"
+import { Button } from "@/app/components/ui/button";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/app/components/ui/form";
+import { Input } from "@/app/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { Card, CardContent } from "@/app/components/ui/card";
 
 // Form schema with validation
 const formSchema = z.object({
-  // Personal Information
   firstName: z.string().min(2, { message: "First name must be at least 2 characters." }),
   lastName: z.string().min(2, { message: "Last name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   phone: z.string().min(10, { message: "Please enter a valid phone number." }),
-
-  // Academic Information
   institution: z.string().min(2, { message: "Institution name is required." }),
   major: z.string().min(2, { message: "Field of study is required." }),
   yearOfStudy: z.string().min(1, { message: "Please select your year of study." }),
-
-  // Consent
   dataConsent: z.boolean().refine((value) => value === true, {
     message: "You must agree to the data collection policy.",
   }),
-})
+});
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.infer<typeof formSchema>;
 
 const steps = [
   { id: "step-1", name: "Personal Information" },
   { id: "step-2", name: "Academic Information" },
   { id: "step-3", name: "Review & Submit" },
-]
+];
 
 export default function WorkshopRegistrationForm() {
-  const [currentStep, setCurrentStep] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -60,33 +55,78 @@ export default function WorkshopRegistrationForm() {
       yearOfStudy: "",
       dataConsent: false,
     },
-  })
+  });
 
-  function onSubmit(data: FormValues) {
+  async function onSubmit(data: FormValues) {
     setIsSubmitting(true);
+    setSubmissionError(null);
 
-    fetch("/api/posts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    })
-      .then(async (response) => {
-        const result = await response.json();
-        if (response.ok) {
-          console.log("Success:", result);
-          setIsSubmitted(true);
-        } else {
-          console.error("Error:", result.error);
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      })
-      .finally(() => {
+    try {
+      // Store in Supabase
+      const { error: supabaseError } = await supabase
+        .from('test_workshop')
+        .insert([
+          {
+            first_name: data.firstName,
+            last_name: data.lastName,
+            email: data.email,
+            phone: data.phone,
+            institution: data.institution,
+            major: data.major,
+            year_of_study: data.yearOfStudy,
+            data_consent: data.dataConsent,
+            registration_date: new Date().toISOString(),
+          },
+        ]);
+
+      if (supabaseError) {
+        console.error('Supabase insertion error:', supabaseError);
+        setSubmissionError(supabaseError.message);
         setIsSubmitting(false);
-      });
+        return;
+      }
+
+      // Send confirmation email
+      try {
+        const emailResponse = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+          }),
+        });
+
+        // Handle response with proper error checking
+        if (!emailResponse.ok) {
+          let errorMessage = 'Failed to send confirmation email';
+          try {
+            const errorData = await emailResponse.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch {
+            // If response isn't valid JSON, use text instead
+            errorMessage = await emailResponse.text() || errorMessage;
+          }
+          console.error('Email error response:', errorMessage);
+        } else {
+          const result = await emailResponse.json();
+          console.log('Email sent successfully:', result);
+        }
+      } catch (emailError) {
+        console.error('Email try/catch error:', emailError);
+        // We continue even if email fails - user is still registered
+      }
+
+      // Mark form as submitted
+      console.log('Form submitted successfully!');
+      setIsSubmitted(true);
+    } catch (error) {
+      console.error('Submission error:', error);
+      setSubmissionError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const next = async () => {
@@ -94,18 +134,18 @@ export default function WorkshopRegistrationForm() {
       ["firstName", "lastName", "email", "phone"],
       ["institution", "major", "yearOfStudy"],
       ["dataConsent"],
-    ][currentStep]
+    ][currentStep];
 
-    const isValid = await form.trigger(fields as (keyof FormValues)[], { shouldFocus: true })
+    const isValid = await form.trigger(fields as (keyof FormValues)[], { shouldFocus: true });
 
     if (isValid) {
-      setCurrentStep((step) => step + 1)
+      setCurrentStep((step) => step + 1);
     }
-  }
+  };
 
   const prev = () => {
-    setCurrentStep((step) => step - 1)
-  }
+    setCurrentStep((step) => step - 1);
+  };
 
   if (isSubmitted) {
     return (
@@ -117,7 +157,7 @@ export default function WorkshopRegistrationForm() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Registration Complete!</h2>
             <p className="text-gray-600 mb-6">
-              Thank you for registering for our workshop. We will sent a email to your inbox soon.
+              Thank you for registering for our workshop. We will send an email to your inbox soon.
             </p>
             <p className="text-gray-600">
               You will receive additional details about the workshop closer to the event date.
@@ -125,9 +165,9 @@ export default function WorkshopRegistrationForm() {
             <Button
               className="mt-6"
               onClick={() => {
-                form.reset()
-                setCurrentStep(0)
-                setIsSubmitted(false)
+                form.reset();
+                setCurrentStep(0);
+                setIsSubmitted(false);
               }}
             >
               Register Another Participant
@@ -135,7 +175,7 @@ export default function WorkshopRegistrationForm() {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -165,6 +205,12 @@ export default function WorkshopRegistrationForm() {
           </div>
         </div>
 
+        {submissionError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded">
+            <p>Error: {submissionError}</p>
+          </div>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Step 1: Personal Information */}
@@ -176,13 +222,17 @@ export default function WorkshopRegistrationForm() {
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
-                      <FormItem>
+                        <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Samarpan" {...field} />
+                          <Input 
+                          placeholder="Samarpan" 
+                          {...field} 
+                          onChange={(e) => field.onChange(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
+                          />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
+                        </FormItem>
                     )}
                   />
                   <FormField
@@ -192,7 +242,8 @@ export default function WorkshopRegistrationForm() {
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="KC" {...field} />
+                          <Input placeholder="KC" {...field}
+                          onChange={(e) => field.onChange(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}/>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -218,9 +269,30 @@ export default function WorkshopRegistrationForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+977-9812345678" {...field} />
-                      </FormControl>
+                        <FormControl>
+                        <Input 
+                          placeholder="+977-9812345678" 
+                          {...field} 
+                          onChange={(e) => {
+                          const value = e.target.value;
+                          // Only format if there are numbers
+                          if (value && /^\d+$/.test(value)) {
+                            let formattedValue = value;
+                            // Simple country code detection based on first few digits
+                            if (value.startsWith('98')) {
+                            formattedValue = `+977-98${value.substring(3)}`;
+                            } else if (value.startsWith('91')) {
+                            formattedValue = `+91-91${value.substring(2)}`;
+                            } else if (value.startsWith('1')) {
+                            formattedValue = `+1-1${value.substring(1)}`;
+                            }
+                            field.onChange(formattedValue);
+                          } else {
+                            field.onChange(value);
+                          }
+                          }}
+                        />
+                        </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -238,13 +310,13 @@ export default function WorkshopRegistrationForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>College/Institution Name</FormLabel>
-                        <FormControl>
+                      <FormControl>
                         <Input
                           placeholder="PNC, TU"
                           {...field}
                           onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                         />
-                        </FormControl>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -256,8 +328,11 @@ export default function WorkshopRegistrationForm() {
                     <FormItem>
                       <FormLabel>Major/Field of Study</FormLabel>
                       <FormControl>
-                        <Input placeholder="BCA" {...field} 
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}/>
+                        <Input
+                          placeholder="BCA"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -276,12 +351,12 @@ export default function WorkshopRegistrationForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="1st Year (1st and 2nd Semester)">1st Year (1st and 2nd Semester)</SelectItem>
-                            <SelectItem value="2nd Year (3rd and 4th Semester)">2nd Year (3rd and 4th Semester)</SelectItem>
-                            <SelectItem value="3rd Year (5th and 6th Semester)">3rd Year (5th and 6th Semester)</SelectItem>
-                            <SelectItem value="4th Year (7th and 8th Semester)">4th Year (7th and 8th Semester)</SelectItem>
-                            <SelectItem value="+2/A Level">+2/A Level</SelectItem>
-                            <SelectItem value="Secondary Level">Secondary Level</SelectItem>
+                          <SelectItem value="1st Year (1st and 2nd Semester)">1st Year (1st and 2nd Semester)</SelectItem>
+                          <SelectItem value="2nd Year (3rd and 4th Semester)">2nd Year (3rd and 4th Semester)</SelectItem>
+                          <SelectItem value="3rd Year (5th and 6th Semester)">3rd Year (5th and 6th Semester)</SelectItem>
+                          <SelectItem value="4th Year (7th and 8th Semester)">4th Year (7th and 8th Semester)</SelectItem>
+                          <SelectItem value="+2/A Level">+2/A Level</SelectItem>
+                          <SelectItem value="Secondary Level">Secondary Level</SelectItem>
                           <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -316,7 +391,7 @@ export default function WorkshopRegistrationForm() {
                     <div>
                       <h3 className="font-medium text-sm text-gray-500">Academic Information</h3>
                       <p>
-                        <span className="font-medium">Collage/Instution:</span> {form.getValues("institution")}
+                        <span className="font-medium">College/Institution:</span> {form.getValues("institution")}
                       </p>
                       <p>
                         <span className="font-medium">Major:</span> {form.getValues("major")}
@@ -340,9 +415,9 @@ export default function WorkshopRegistrationForm() {
                         <FormLabel>I agree to the collection and processing of my personal data</FormLabel>
                         <FormDescription>
                           By checking this box, you agree to our{" "}
-                            <Link href="/privacy" className="text-primary underline" target="_blank">
+                          <Link href="/privacy" className="text-primary underline" target="_blank">
                             Privacy Policy
-                            </Link>
+                          </Link>
                           .
                         </FormDescription>
                       </div>
@@ -380,5 +455,5 @@ export default function WorkshopRegistrationForm() {
         </Form>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -8,10 +8,10 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  BarChart3Icon,
   TrendingUpIcon,
   BuildingIcon,
   GraduationCapIcon,
+  BarChart3Icon,
 } from "lucide-react"
 
 interface RegistrationStatsProps {
@@ -28,7 +28,11 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
     // Institution stats
     const institutions = registrations.reduce(
       (acc, reg) => {
-        acc[reg.institution] = (acc[reg.institution] || 0) + 1
+        // Use either institution or first_name based on availability
+        const inst = reg.institution || "";
+        if (inst) {
+          acc[inst] = (acc[inst] || 0) + 1
+        }
         return acc
       },
       {} as Record<string, number>,
@@ -41,7 +45,11 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
     // Major stats
     const majors = registrations.reduce(
       (acc, reg) => {
-        acc[reg.major] = (acc[reg.major] || 0) + 1
+        // Use either major or major field based on availability
+        const majorValue = reg.major || "";
+        if (majorValue) {
+          acc[majorValue] = (acc[majorValue] || 0) + 1
+        }
         return acc
       },
       {} as Record<string, number>,
@@ -54,7 +62,11 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
     // Year of study stats
     const yearOfStudy = registrations.reduce(
       (acc, reg) => {
-        acc[reg.yearOfStudy] = (acc[reg.yearOfStudy] || 0) + 1
+        // Use either yearOfStudy or year_of_study based on availability
+        const year = reg.yearOfStudy || reg.year_of_study || "";
+        if (year) {
+          acc[year] = (acc[year] || 0) + 1
+        }
         return acc
       },
       {} as Record<string, number>,
@@ -69,8 +81,10 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
       return {
         date: dateString,
         count: registrations.filter((r) => {
-          const regDate = new Date(r.registrationDate).toISOString().split("T")[0]
-          return regDate === dateString
+          // Use either registrationDate or registration_date based on availability
+          const regDate = r.registrationDate || r.registration_date || "";
+          if (!regDate) return false;
+          return new Date(regDate).toISOString().split("T")[0] === dateString
         }).length,
       }
     }).reverse()
@@ -87,6 +101,11 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
     }
   }, [registrations])
 
+  // Calculate percentages for summary cards
+  const approvedPercentage = stats.total > 0 ? (stats.approved / stats.total) * 100 : 0
+  const pendingPercentage = stats.total > 0 ? (stats.pending / stats.total) * 100 : 0
+  const rejectedPercentage = stats.total > 0 ? (stats.rejected / stats.total) * 100 : 0
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -98,10 +117,14 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
                 <p className="text-sm font-medium text-gray-500">Total Registrations</p>
                 <p className="text-3xl font-bold">{stats.total}</p>
               </div>
-              <div className="bg-primary/10 p-3 rounded-full">
-                <UsersIcon className="h-6 w-6 text-primary" />
+              <div className="bg-navy/10 p-3 rounded-full">
+                <UsersIcon className="h-6 w-6 text-navy" />
               </div>
             </div>
+            <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+              <div className="bg-navy rounded-full h-2" style={{ width: '100%' }}></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">100% of total</p>
           </CardContent>
         </Card>
 
@@ -116,6 +139,10 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
                 <CheckCircleIcon className="h-6 w-6 text-green-600" />
               </div>
             </div>
+            <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+              <div className="bg-green-500 rounded-full h-2" style={{ width: `${approvedPercentage}%` }}></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{approvedPercentage.toFixed(1)}% of total</p>
           </CardContent>
         </Card>
 
@@ -130,6 +157,10 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
                 <ClockIcon className="h-6 w-6 text-yellow-600" />
               </div>
             </div>
+            <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+              <div className="bg-yellow-500 rounded-full h-2" style={{ width: `${pendingPercentage}%` }}></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{pendingPercentage.toFixed(1)}% of total</p>
           </CardContent>
         </Card>
 
@@ -144,6 +175,10 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
                 <XCircleIcon className="h-6 w-6 text-red-600" />
               </div>
             </div>
+            <div className="mt-4 w-full bg-gray-100 rounded-full h-2">
+              <div className="bg-red-500 rounded-full h-2" style={{ width: `${rejectedPercentage}%` }}></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{rejectedPercentage.toFixed(1)}% of total</p>
           </CardContent>
         </Card>
       </div>
@@ -162,13 +197,14 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
           <CardContent>
             <div className="h-[200px] flex items-end justify-between gap-2">
               {stats.dailyRegistrations.map((day) => {
-                const height = day.count
-                  ? (day.count / Math.max(...stats.dailyRegistrations.map((d) => d.count))) * 100
+                const maxCount = Math.max(...stats.dailyRegistrations.map((d) => d.count))
+                const height = day.count && maxCount > 0
+                  ? (day.count / maxCount) * 100
                   : 0
 
                 return (
                   <div key={day.date} className="flex flex-col items-center flex-1">
-                    <div className="w-full bg-primary/80 rounded-t-sm" style={{ height: `${height}%` }}></div>
+                    <div className="w-full bg-navy rounded-t-sm" style={{ height: `${height}%` }}></div>
                     <p className="text-xs text-gray-500 mt-1">
                       {new Date(day.date).toLocaleDateString(undefined, { weekday: "short" })}
                     </p>
@@ -191,23 +227,30 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(stats.yearOfStudy).map(([year, count]) => {
-                const percentage = (count / stats.total) * 100
+              {Object.entries(stats.yearOfStudy).length > 0 ? (
+                Object.entries(stats.yearOfStudy).map(([year, count]) => {
+                  const percentage = (count / stats.total) * 100
 
-                return (
-                  <div key={year} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <p className="font-medium capitalize">{year}</p>
-                      <p className="text-gray-500">
-                        {count} ({percentage.toFixed(1)}%)
-                      </p>
+                  return (
+                    <div key={year} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <p className="font-medium capitalize">{year}</p>
+                        <p className="text-gray-500">
+                          {count} ({percentage.toFixed(1)}%)
+                        </p>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-3">
+                        <div 
+                          className="bg-indigo-500 rounded-full h-3 transition-all duration-300 ease-in-out" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="bg-primary rounded-full h-2" style={{ width: `${percentage}%` }}></div>
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -223,23 +266,30 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.topInstitutions.map(([institution, count]) => {
-                const percentage = (count / stats.total) * 100
+              {stats.topInstitutions.length > 0 ? (
+                stats.topInstitutions.map(([institution, count]) => {
+                  const percentage = (count / stats.total) * 100
 
-                return (
-                  <div key={institution} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <p className="font-medium truncate flex-1">{institution}</p>
-                      <p className="text-gray-500">
-                        {count} ({percentage.toFixed(1)}%)
-                      </p>
+                  return (
+                    <div key={institution} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <p className="font-medium truncate flex-1">{institution}</p>
+                        <p className="text-gray-500">
+                          {count} ({percentage.toFixed(1)}%)
+                        </p>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-3">
+                        <div 
+                          className="bg-blue-500 rounded-full h-3 transition-all duration-300 ease-in-out" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="bg-primary rounded-full h-2" style={{ width: `${percentage}%` }}></div>
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -255,23 +305,30 @@ export default function RegistrationStats({ registrations }: RegistrationStatsPr
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.topMajors.map(([major, count]) => {
-                const percentage = (count / stats.total) * 100
+              {stats.topMajors.length > 0 ? (
+                stats.topMajors.map(([major, count]) => {
+                  const percentage = (count / stats.total) * 100
 
-                return (
-                  <div key={major} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <p className="font-medium truncate flex-1">{major}</p>
-                      <p className="text-gray-500">
-                        {count} ({percentage.toFixed(1)}%)
-                      </p>
+                  return (
+                    <div key={major} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <p className="font-medium truncate flex-1">{major}</p>
+                        <p className="text-gray-500">
+                          {count} ({percentage.toFixed(1)}%)
+                        </p>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-3">
+                        <div 
+                          className="bg-purple-500 rounded-full h-3 transition-all duration-300 ease-in-out" 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="bg-primary rounded-full h-2" style={{ width: `${percentage}%` }}></div>
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <p className="text-gray-500 text-center py-4">No data available</p>
+              )}
             </div>
           </CardContent>
         </Card>

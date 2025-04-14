@@ -13,6 +13,7 @@ module.exports = {
       },
       colors: {
         'bluee': "#001B45", // Add your custom color here
+        'tee': "#CE7B91", // Add your custom color here
       },
     },
   },
