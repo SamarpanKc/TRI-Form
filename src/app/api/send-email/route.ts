@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     // Email content
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from:`TRI Workshop Team ${process.env.EMAIL_USER}`,
       to: email,
       subject: "Workshop Registration Confirmation",
       text: `Hello ${firstName} ${lastName},\n\nThank you for registering for our workshop! We have received your registration and we're excited to have you join us.\n\nWorkshop Date: [Insert Workshop Date Here]\nWorkshop Time: 7:00 to 8:00 PM\nMeeting Link: [Insert Meeting Link Here]\nOur Facebook Page: [Insert Facebook Page Link Here]\n\nBest regards,\nTRI (Tech Research and Innovation)`,
