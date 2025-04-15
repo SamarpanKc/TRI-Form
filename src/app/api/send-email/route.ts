@@ -43,13 +43,13 @@ export async function POST(request: Request) {
                 <p style="margin-top: 0; margin-bottom: 20px; line-height: 1.5; text-align: left;">Thank you for registering for our workshop! We have received your registration and we're excited to have you join us.</p>
 
                 <p style="margin-top: 0; margin-bottom: 10px; text-align: left;">
-                  <strong>Workshop Date:</strong> <span style="color: #555;">20th to 30th April, 2025</span>
+                  <strong>Date:</strong> <span style="color: #555;">20th to 30th April, 2025</span>
                 </p>
                 <p style="margin-top: 0; margin-bottom: 10px; text-align: left;">
-                  <strong>Workshop Time:</strong> <span style="color: #555;">7:00 to 8:00 PM</span>
+                  <strong>Time:</strong> <span style="color: #555;">7:00 to 8:00 PM</span>
                 </p>
                 <p style="margin-top: 0; margin-bottom: 10px; text-align: left;">
-                  <strong>Meeting Link:</strong> <a href="[Insert Meeting Link Here]" style="color: #001b45; text-decoration: underline;">Click Here to Join</a>
+                  <strong>G-Meet Link:</strong> <a href="[Insert Meeting Link Here]" style="color: #001b45; text-decoration: underline;">Click Here to Join</a>
                 </p>
                 <p style="margin-top: 0; margin-bottom: 20px; text-align: left;">
                   <strong>Facebook Page:</strong> <a href="https://www.facebook.com/profile.php?id=61566885262328" style="color: #001b45; text-decoration: underline;">Follow for more updates</a>
